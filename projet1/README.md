@@ -26,9 +26,12 @@ Bias is measured as the critic's `Q(s, a)` minus the Monte Carlo discounted retu
 
 ## Installation
 
+
 ```
+cd projet1
 uv sync 
 source .venv.bin/activate
+pip install -e .
 ```
 
 ## Usage
