@@ -19,7 +19,8 @@ Bias is measured as the critic's `Q(s, a)` minus the Monte Carlo discounted retu
 ├── plots.py         # results -> learning curves, bias curves, stats
 ├── notebooks/       # scratch only
 ├── results/         # one CSV per run (gitignored)
-├── requirements.txt
+├── uv.lock          # uv files
+├── pyproject.toml   
 └── README.md
 ```
 
