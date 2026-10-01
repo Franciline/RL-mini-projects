@@ -110,4 +110,72 @@ class DDPG:
 
         soft_update(self.critic, self.critic_targ, self.tau)
         soft_update(self.actor, self.actor_targ, self.tau)
-        
+
+
+
+class TD3:
+    """gamma: discount factor. tao: how fast targets follow main networks (default 0.5% per step)."""
+    def __init__(self, obs_dim, act_dim, layer_norm=False, hidden=(256,256),lr=3e-4, gamma=0.99, tau=0.005, sigma=0.1,
+                 policy_delay = 2, target_noise_clip = 0.5, target_noise = 0.2): 
+
+        # online networks
+        self.actor = DetActor(obs_dim, act_dim, hidden, layer_norm, sigma)
+        self.critic_Q1 = Critic(obs_dim, act_dim, hidden, layer_norm)
+        self.critic_Q2 = Critic(obs_dim, act_dim, hidden, layer_norm)
+
+        # target networks, deeptarget so that independent params
+        self.actor_targ = copy.deepcopy(self.actor)
+        self.critic_targ_Q1 = copy.deepcopy(self.critic_Q1)
+        self.critic_targ_Q2 = copy.deepcopy(self.critic_Q2)
+
+        # optimizers
+        self.actor_opt = torch.optim.Adam(self.actor.parameters(), lr=lr)
+        self.critic_opt_Q1 = torch.optim.Adam(self.critic_Q1.parameters(), lr=lr)
+        self.critic_opt_Q2 = torch.optim.Adam(self.critic_Q2.parameters(), lr=lr)
+
+        self.gamma, self.tau = gamma, tau
+        self.policy_delay = policy_delay # policy delay is K steps
+        self.target_noise_clip = target_noise_clip
+        self.target_noise = target_noise
+        self.updates = 0
+
+    def update(self,batch):
+        """one gradient step on a batch from replay buffer. batch is a Transitions object"""
+        # batch unpack
+        obs, act = batch.obs, batch.action.value
+        r, next_obs, term = batch.reward, batch.next_obs, batch.terminated
+
+        # update critic, Bellman target
+        with torch.no_grad():
+            next_action = self.actor_targ.pi(next_obs)
+            noise = (torch.randn_like(next_action) * self.target_noise).clamp(
+                -self.target_noise_clip, self.target_noise_clip)
+            next_action = (next_action + noise).clamp(-1, 1)
+            next_q_Q1 = self.critic_targ_Q1(next_obs, next_action)
+            next_q_Q2 = self.critic_targ_Q2(next_obs, next_action)
+            next_q = torch.minimum(next_q_Q1, next_q_Q2)
+            # a real terminal state does not bootstrap
+            target = r + self.gamma * (~term).float() * next_q
+
+        # both critics learn from the same conservative target
+        critic_loss_Q1 = F.mse_loss(self.critic_Q1(obs, act), target)
+        self.critic_opt_Q1.zero_grad()
+        critic_loss_Q1.backward()
+        self.critic_opt_Q1.step()
+
+        critic_loss_Q2 = F.mse_loss(self.critic_Q2(obs, act), target)
+        self.critic_opt_Q2.zero_grad()
+        critic_loss_Q2.backward()
+        self.critic_opt_Q2.step()
+
+        self.updates += 1
+        if self.updates % self.policy_delay == 0:
+            # critic Q1 guides the delayed policy update
+            actor_loss = -self.critic_Q1(obs, self.actor.pi(obs)).mean()
+            self.actor_opt.zero_grad()
+            actor_loss.backward()
+            self.actor_opt.step()
+
+            soft_update(self.critic_Q1, self.critic_targ_Q1, self.tau)
+            soft_update(self.critic_Q2, self.critic_targ_Q2, self.tau)
+            soft_update(self.actor, self.actor_targ, self.tau)
