@@ -82,3 +82,32 @@ class DDPG:
 
         self.gamma, self.tau = gamma, tau
 
+    def update(self,batch):
+        """one gradient step on a batch from replay buffer. batch is a Transitions object"""
+        # batch unpack
+        obs, act = batch.obs, batch.action.value
+        r, next_obs, term = batch.reward, batch.next_obs, batch.terminated
+
+        # update critic, Bellman target
+        with torch.no_grad():
+            # evaluate the picked next actions with target actor
+            next_q = self.critic_targ(next_obs,self.actor_targ.pi(next_obs))
+            # a real terminal state does not bootstrap
+            target = r + self.gamma * (~term).float() * next_q
+
+        # critic returns Q(s,a)
+        critic_loss = F.mse_loss(self.critic(obs,act),target)
+        self.critic_opt.zero_grad()
+        critic_loss.backward()
+        self.critic_opt.step()
+
+        # actor's own action pi(obs), gradient from Q back through action into actor's weights
+        # minus to turn "maximize Q" into a loss to minimize 
+        actor_loss = -self.critic(obs, self.actor.pi(obs)).mean()
+        self.actor_opt.zero_grad()
+        actor_loss.backward()
+        self.actor_opt.step()
+
+        soft_update(self.critic, self.critic_targ, self.tau)
+        soft_update(self.actor, self.actor_targ, self.tau)
+        

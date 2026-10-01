@@ -18,6 +18,7 @@ dependencies = [
     "torch",
     "tqdm",
     "ipykernel",
+    "pandas",
 ]
 
 [tool.uv]
