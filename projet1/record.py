@@ -1,5 +1,3 @@
-# python record.py --weights results/ddpg_ln1_seed0_final.pt --layer-norm 1 --episodes 3
-
 import argparse
 import os
 

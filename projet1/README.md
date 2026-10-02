@@ -28,15 +28,22 @@ Bias is measured as the critic's `Q(s, a)` minus the Monte Carlo discounted retu
 
 
 ```
-cd projet1
+cd proje    t1
 uv sync 
 source .venv.bin/activate
 pip install -e .
 ```
 
 ## Usage
-Single run:
- 
+
+
+To train a DDPG with no layer norm, 20K steps: 
 ```bash
-python train.py --algo td3 --layer-norm 1 --seed 0
+cd projet1
+python train.py --algo ddpg --layer-norm 0 --seed 0 --steps 20000
+```
+
+To visualize 3 episodes :
+```bash
+python record.py --weights results/ddpg_ln1_seed0_final.pt --layer-norm 0 --episodes 3
 ```

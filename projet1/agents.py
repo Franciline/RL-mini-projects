@@ -37,7 +37,7 @@ class DetActor(Actor[Action]):
         """Noisy training action. No grad because action goes into replay buffer, causing memory leak if not."""
         with torch.no_grad():
             a = self.pi(obs) # [-1,1]x[-1,1]
-            a = (a + self.sigma * torch.rand_like(a)).clamp(-1,1)
+            a = (a + self.sigma * torch.randn_like(a)).clamp(-1,1)
         return Action(value=a)
 
     def act(self,obs):
@@ -138,6 +138,9 @@ class TD3:
         self.target_noise_clip = target_noise_clip
         self.target_noise = target_noise
         self.updates = 0
+
+        self.critic = self.critic_Q1 # what is used to calculate bias 
+
 
     def update(self,batch):
         """one gradient step on a batch from replay buffer. batch is a Transitions object"""

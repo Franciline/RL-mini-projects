@@ -1,5 +1,3 @@
-# python train.py --algo ddpg --layer-norm 0 --seed 0 --steps 20000
-
 import argparse
 import os
 
