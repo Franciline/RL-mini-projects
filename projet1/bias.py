@@ -3,6 +3,8 @@ import numpy as np
 import torch 
 
 ENV = "LunarLander-v3"
+TAIL = 300  # steps dropped at the end of a truncated episode (gamma^300 ~ 0.05)
+
 
 def rollout(actor,seed):
     """Play one full episode from a given seed with current deterministic actor. Returns observations, actions, rewards, terminated."""
