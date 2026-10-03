@@ -40,10 +40,15 @@ pip install -e .
 To train a DDPG with no layer norm, 20K steps: 
 ```bash
 cd projet1
-python train.py --algo ddpg --layer-norm 0 --seed 0 --steps 20000
+python train.py --algo ddpg --layer-norm 0 --steps 8000 --eval-every 1000 --n-eval 3
 ```
 
-To visualize 3 episodes :
+Or for td3 with layer norm:
 ```bash
-python record.py --weights results/ddpg_ln1_seed0_final.pt --layer-norm 0 --episodes 3
+python train.py --algo td3 --layer-norm 1 --steps 8000 --eval-every 1000 --n-eval 3
+```
+
+To visualize 3 episodes using the model .pt and layer norm 0 or 1 depending on how it was trained:
+```bash
+python record.py --weights results/*.pt --layer-norm 0 --episodes 3
 ```
