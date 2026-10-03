@@ -28,16 +28,16 @@ Bias is measured as the critic's `Q(s, a)` minus the Monte Carlo discounted retu
 
 
 ```
-cd proje    t1
+cd projet1
 uv sync 
-source .venv.bin/activate
+source .venv/bin/activate
 pip install -e .
 ```
 
 ## Usage
 
 
-To train a DDPG with no layer norm, 20K steps: 
+To train a DDPG with no layer norm, 8K steps:
 ```bash
 cd projet1
 python train.py --algo ddpg --layer-norm 0 --steps 8000 --eval-every 1000 --n-eval 3
@@ -48,7 +48,28 @@ Or for td3 with layer norm:
 python train.py --algo td3 --layer-norm 1 --steps 8000 --eval-every 1000 --n-eval 3
 ```
 
+### Training parameters
+
+| Parameter | Values | Default | Description |
+| --- | --- | --- | --- |
+| `--algo` | `ddpg`, `td3` | `ddpg` | Reinforcement-learning algorithm to train. |
+| `--layer-norm` | `0`, `1` | `0` | Disable (`0`) or enable (`1`) LayerNorm in actor and critic hidden layers. |
+| `--seed` | integer | `0` | Seed used for Python, NumPy, PyTorch, and the training environment. |
+| `--steps` | positive integer | `200000` | Total number of environment transitions to collect. Learning starts after 5000 transitions. |
+| `--eval-every` | positive integer | `5000` | Number of training-environment steps between evaluations. |
+| `--n-eval` | positive integer | `20` | Number of deterministic episodes, using fixed seeds, per evaluation. |
+
 To visualize 3 episodes using the model .pt and layer norm 0 or 1 depending on how it was trained:
 ```bash
-python record.py --weights results/*.pt --layer-norm 0 --episodes 3
+python record.py --weights results/ddpg_ln0_seed0_best.pt --layer-norm 0 --episodes 3
 ```
+
+### Recording parameters
+
+| Parameter | Values | Default | Description |
+| --- | --- | --- | --- |
+| `--weights` | path to `.pt` file | required | Actor checkpoint to load. |
+| `--layer-norm` | `0`, `1` | `0` | Must match the LayerNorm setting used during training. |
+| `--episodes` | positive integer | `1` | Number of episodes to record. |
+| `--seed` | integer | `0` | Seed for the first episode; later episodes use consecutive seeds. |
+| `--out` | directory path | `videos` | Directory where video files are saved. |
