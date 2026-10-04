@@ -1,7 +1,9 @@
 import argparse
 import copy
+import json
 import os
 import random
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -18,7 +20,7 @@ ALGOS = {"ddpg": DDPG, "td3": TD3}
 EVAL_SEED0 = 100_000  # bias/eval seeds: fixed, identical for every run and variant
 
 
-def train(args, seed):
+def train(args, seed, result_dir):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -53,14 +55,13 @@ def train(args, seed):
                   f"bias {metrics['bias_mean']:.2f}  mae {metrics['bias_mae']:.2f}")
             next_eval = collector.steps + args.eval_every
 
-    os.makedirs("results", exist_ok=True)
-    name = f"{args.algo}_ln{args.layer_norm}_seed{seed}"
-    pd.DataFrame(rows).to_csv(f"results/{name}.csv", index=False)
+    name = f"seed{seed}"
+    pd.DataFrame(rows).to_csv(os.path.join(result_dir, f"{name}.csv"), index=False)
     if first_bias is not None:
-        np.save(f"results/{name}_bias_first.npy", first_bias)
-        np.save(f"results/{name}_bias_last.npy", last_bias)
-        torch.save(best_state, f"results/{name}_best.pt")
-    torch.save(agent.actor.state_dict(), f"results/{name}_final.pt")
+        np.save(os.path.join(result_dir, f"{name}_bias_first.npy"), first_bias)
+        np.save(os.path.join(result_dir, f"{name}_bias_last.npy"), last_bias)
+        torch.save(best_state, os.path.join(result_dir, f"{name}_best.pt"))
+    torch.save(agent.actor.state_dict(), os.path.join(result_dir, f"{name}_final.pt"))
     env.gym_env.close()
 
 
@@ -84,10 +85,25 @@ def main():
     if args.n_runs > 1 and args.seed != 0:
         p.error("--seed cannot be combined with --n-runs greater than 1")
 
+    created_at = datetime.now().strftime("%Y%m%d-%H%M%S")
+    result_dir = os.path.join(
+        "results", f"{created_at}_{args.algo}_ln{args.layer_norm}"
+    )
+    os.makedirs(result_dir)
+    config = {
+        **vars(args),
+        "environment": ENV,
+        "evaluation_seed_start": EVAL_SEED0,
+        "created_at": created_at,
+    }
+    with open(os.path.join(result_dir, "config.json"), "w") as file:
+        json.dump(config, file, indent=2)
+    print(f"results: {result_dir}")
+
     seeds = range(args.n_runs) if args.n_runs > 1 else [args.seed]
     for run, seed in enumerate(seeds, start=1):
         print(f"run {run}/{args.n_runs}: seed {seed}")
-        train(args, seed)
+        train(args, seed, result_dir)
 
 
 if __name__ == "__main__":

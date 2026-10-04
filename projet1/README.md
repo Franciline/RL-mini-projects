@@ -54,6 +54,19 @@ Run five independent training runs sequentially, using seeds 0 through 4:
 python train.py --algo td3 --layer-norm 1 --n-runs 5 --steps 100000
 ```
 
+Each command creates one timestamped experiment directory:
+
+```text
+results/20261004-153012_td3_ln1/
+├── config.json
+├── seed0.csv
+├── seed0_bias_first.npy
+├── seed0_bias_last.npy
+├── seed0_best.pt
+├── seed0_final.pt
+└── ...
+```
+
 ### Training parameters
 
 | Parameter | Values | Default | Description |
@@ -69,9 +82,23 @@ python train.py --algo td3 --layer-norm 1 --n-runs 5 --steps 100000
 | `--eval-every` | positive integer | `5000` | Number of training-environment steps between evaluations after warm-up. |
 | `--n-eval` | positive integer | `20` | Number of deterministic episodes, using fixed seeds, per evaluation. |
 
+### Plots
+
+Pass the experiment directories to compare. Plot filenames contain a timestamp, so existing plots are not overwritten.
+
+```bash
+python plots.py \
+  results/20261004-120000_ddpg_ln0 \
+  results/20261004-130000_ddpg_ln1 \
+  results/20261004-140000_td3_ln0 \
+  results/20261004-150000_td3_ln1
+```
+
+The command saves performance, bias, bias distribution, episode length, and Q-versus-Monte-Carlo plots in `plots/`.
+
 To visualize 3 episodes using the model .pt and layer norm 0 or 1 depending on how it was trained:
 ```bash
-python record.py --weights results/ddpg_ln0_seed0_best.pt --layer-norm 0 --episodes 3
+python record.py --weights results/20261004-120000_ddpg_ln0/seed0_best.pt --layer-norm 0 --episodes 3
 ```
 
 ### Recording parameters
