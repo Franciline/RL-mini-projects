@@ -32,7 +32,7 @@ def train(args, seed):
 
     rows, best_return, best_state = [], -float("inf"), None
     first_bias = last_bias = None
-    next_eval = args.eval_every
+    next_eval = args.learning_starts
 
     while collector.steps < args.steps:
         buffer.add(collector.collect(1))
@@ -51,7 +51,7 @@ def train(args, seed):
                 best_state = copy.deepcopy(agent.actor.state_dict())
             print(f"step {collector.steps}: return {metrics['return']:.1f}  "
                   f"bias {metrics['bias_mean']:.2f}  mae {metrics['bias_mae']:.2f}")
-            next_eval += args.eval_every
+            next_eval = collector.steps + args.eval_every
 
     os.makedirs("results", exist_ok=True)
     name = f"{args.algo}_ln{args.layer_norm}_seed{seed}"

@@ -66,7 +66,7 @@ python train.py --algo td3 --layer-norm 1 --n-runs 5 --steps 100000
 | `--buffer-size` | positive integer | `200000` | Maximum number of transitions stored in the replay buffer. |
 | `--learning-starts` | non-negative integer | `5000` | Replay-buffer transitions collected before gradient updates begin. |
 | `--batch-size` | positive integer | `256` | Replay-buffer transitions sampled per gradient update. |
-| `--eval-every` | positive integer | `5000` | Number of training-environment steps between evaluations. |
+| `--eval-every` | positive integer | `5000` | Number of training-environment steps between evaluations after warm-up. |
 | `--n-eval` | positive integer | `20` | Number of deterministic episodes, using fixed seeds, per evaluation. |
 
 To visualize 3 episodes using the model .pt and layer norm 0 or 1 depending on how it was trained:
