@@ -48,13 +48,20 @@ Or for td3 with layer norm:
 python train.py --algo td3 --layer-norm 1 --steps 8000 --eval-every 1000 --n-eval 3
 ```
 
+Run five independent training runs sequentially, using seeds 0 through 4:
+
+```bash
+python train.py --algo td3 --layer-norm 1 --n-runs 5 --steps 100000
+```
+
 ### Training parameters
 
 | Parameter | Values | Default | Description |
 | --- | --- | --- | --- |
 | `--algo` | `ddpg`, `td3` | `ddpg` | Reinforcement-learning algorithm to train. |
 | `--layer-norm` | `0`, `1` | `0` | Disable (`0`) or enable (`1`) LayerNorm in actor and critic hidden layers. |
-| `--seed` | integer | `0` | Seed used for Python, NumPy, PyTorch, and the training environment. |
+| `--seed` | integer | `0` | Seed for a single run. Cannot be combined with `--n-runs` greater than 1. |
+| `--n-runs` | positive integer | `1` | Number of sequential runs. Multiple runs use seeds `0` through `n-runs - 1`. |
 | `--steps` | positive integer | `200000` | Total number of environment transitions to collect. |
 | `--buffer-size` | positive integer | `200000` | Maximum number of transitions stored in the replay buffer. |
 | `--learning-starts` | non-negative integer | `5000` | Replay-buffer transitions collected before gradient updates begin. |
