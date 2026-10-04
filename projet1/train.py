@@ -24,6 +24,9 @@ def main():
     p.add_argument("--layer-norm", type=int, default=0)
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--steps", type=int, default=200_000)
+    p.add_argument("--buffer-size", type=int, default=200_000)
+    p.add_argument("--learning-starts", type=int, default=5_000)
+    p.add_argument("--batch-size", type=int, default=256)
     p.add_argument("--eval-every", type=int, default=5_000)
     p.add_argument("--n-eval", type=int, default=20, help="episodes (fixed seeds) per checkpoint")
     args = p.parse_args()
@@ -36,7 +39,7 @@ def main():
     agent = ALGOS[args.algo](env.observation_dim, env.action_dim,
                              layer_norm=bool(args.layer_norm))
     collector = TransitionCollector(env, agent.actor)
-    buffer = ReplayBuffer(200_000)
+    buffer = ReplayBuffer(args.buffer_size)
     eval_seeds = [EVAL_SEED0 + i for i in range(args.n_eval)]
 
     rows, best_return, best_state = [], -float("inf"), None
@@ -45,9 +48,9 @@ def main():
 
     while collector.steps < args.steps:
         buffer.add(collector.collect(1))
-        if len(buffer) < 5_000:  # warm-up before learning
+        if len(buffer) < args.learning_starts:  # warm-up before learning
             continue
-        agent.update(buffer.sample(256))
+        agent.update(buffer.sample(args.batch_size))
 
         if collector.steps >= next_eval:
             metrics, bias = bias_eval(agent, eval_seeds, gamma=agent.gamma)

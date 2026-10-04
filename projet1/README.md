@@ -55,7 +55,10 @@ python train.py --algo td3 --layer-norm 1 --steps 8000 --eval-every 1000 --n-eva
 | `--algo` | `ddpg`, `td3` | `ddpg` | Reinforcement-learning algorithm to train. |
 | `--layer-norm` | `0`, `1` | `0` | Disable (`0`) or enable (`1`) LayerNorm in actor and critic hidden layers. |
 | `--seed` | integer | `0` | Seed used for Python, NumPy, PyTorch, and the training environment. |
-| `--steps` | positive integer | `200000` | Total number of environment transitions to collect. Learning starts after 5000 transitions. |
+| `--steps` | positive integer | `200000` | Total number of environment transitions to collect. |
+| `--buffer-size` | positive integer | `200000` | Maximum number of transitions stored in the replay buffer. |
+| `--learning-starts` | non-negative integer | `5000` | Replay-buffer transitions collected before gradient updates begin. |
+| `--batch-size` | positive integer | `256` | Replay-buffer transitions sampled per gradient update. |
 | `--eval-every` | positive integer | `5000` | Number of training-environment steps between evaluations. |
 | `--n-eval` | positive integer | `20` | Number of deterministic episodes, using fixed seeds, per evaluation. |
 
