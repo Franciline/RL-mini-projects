@@ -28,6 +28,50 @@ def rollout(actor,seed):
             terminated) # if terminated true, then episode ended in true state with future reward 0, if false then capped at 1K step
 
 
+def parallel_rollouts(actor, seeds):
+    """Run one deterministic episode per seed in a vectorized environment."""
+    seeds = list(seeds)
+    if not seeds:
+        raise ValueError("seeds must not be empty")
+
+    env = gym.make_vec(ENV, num_envs=len(seeds), continuous=True)
+    obs, _ = env.reset(seed=seeds)
+    observations = [[] for _ in seeds]
+    actions = [[] for _ in seeds]
+    rewards = [[] for _ in seeds]
+    finished = np.zeros(len(seeds), dtype=bool)
+    ended_by_termination = np.zeros(len(seeds), dtype=bool)
+
+    while not finished.all():
+        obs_t = torch.as_tensor(obs, dtype=torch.float32)
+        action = torch.cat(
+            [actor.act(obs_t[i:i + 1]) for i in range(len(seeds))]
+        ).numpy()
+        next_obs, reward, terminated, truncated, _ = env.step(action)
+        active = ~finished
+
+        for i in np.flatnonzero(active):
+            observations[i].append(obs[i])
+            actions[i].append(action[i])
+            rewards[i].append(reward[i])
+
+        done = terminated | truncated
+        ended_by_termination[active & done] = terminated[active & done]
+        finished |= done
+        obs = next_obs
+
+    env.close()
+    return [
+        (
+            np.asarray(observations[i], dtype=np.float32),
+            np.asarray(actions[i], dtype=np.float32),
+            np.asarray(rewards[i], dtype=np.float32),
+            bool(ended_by_termination[i]),
+        )
+        for i in range(len(seeds))
+    ]
+
+
 def discounted_returns(rewards, gamma, terminated):
     """Monte Carlo return G_t of every step, plus a mask of reliable steps."""
     G = np.zeros(len(rewards), dtype=np.float32)
@@ -44,8 +88,7 @@ def discounted_returns(rewards, gamma, terminated):
 def bias_eval(agent, seeds, gamma=0.99):
     """Q(s,a) - G_t over all steps of one deterministic episode per seed."""
     qs, gs, returns, lengths = [], [], [], []
-    for seed in seeds:
-        obs, act, rew, term = rollout(agent.actor, seed)
+    for obs, act, rew, term in parallel_rollouts(agent.actor, seeds):
         G, valid = discounted_returns(rew, gamma, term)
         with torch.no_grad():
             q = agent.critic(torch.as_tensor(obs), torch.as_tensor(act)).numpy()
@@ -68,5 +111,3 @@ def bias_eval(agent, seeds, gamma=0.99):
     }
     return metrics, bias
  
-
-
