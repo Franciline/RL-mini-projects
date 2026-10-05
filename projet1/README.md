@@ -48,10 +48,16 @@ Or for td3 with layer norm:
 python train.py --algo td3 --layer-norm 1 --steps 8000 --eval-every 1000 --n-eval 3
 ```
 
-Run five independent training runs sequentially, using seeds 0 through 4:
+Run five independent training runs, using seeds 0 through 4:
 
 ```bash
 python train.py --algo td3 --layer-norm 1 --n-runs 5 --steps 100000
+```
+
+Run DDPG and TD3, each with and without LayerNorm, through one shared worker pool:
+
+```bash
+python train.py --all-variants --n-runs 10 --jobs 5 --steps 500000
 ```
 
 Each command creates one timestamped experiment directory:
@@ -73,8 +79,10 @@ results/20261004-153012_td3_ln1/
 | --- | --- | --- | --- |
 | `--algo` | `ddpg`, `td3` | `ddpg` | Reinforcement-learning algorithm to train. |
 | `--layer-norm` | `0`, `1` | `0` | Disable (`0`) or enable (`1`) LayerNorm in actor and critic hidden layers. |
+| `--all-variants` | flag | disabled | Run both algorithms with LayerNorm disabled and enabled. Ignores `--algo` and `--layer-norm`. |
 | `--seed` | integer | `0` | Seed for a single run. Cannot be combined with `--n-runs` greater than 1. |
-| `--n-runs` | positive integer | `1` | Number of sequential runs. Multiple runs use seeds `0` through `n-runs - 1`. |
+| `--n-runs` | positive integer | `1` | Number of independent runs. Multiple runs use seeds `0` through `n-runs - 1`. |
+| `--jobs` | positive integer | `5` | Maximum concurrent runs. Limited automatically to `--n-runs`. |
 | `--steps` | positive integer | `200000` | Total number of environment transitions to collect. |
 | `--buffer-size` | positive integer | `1000000` | Maximum number of transitions stored in the replay buffer. |
 | `--learning-starts` | non-negative integer | `5000` | Replay-buffer transitions collected before gradient updates begin. |
@@ -112,7 +120,4 @@ python record.py --weights results/20261004-120000_ddpg_ln0/seed0_best.pt --laye
 | `--out` | directory path | `videos` | Directory where video files are saved. |
 
 
-uv run python train.py --algo ddpg --layer-norm 0 --steps 500000 --eval-every 5000 --n-eval 10 --n-runs 10;
-uv run python train.py --algo ddpg --layer-norm 1 --steps 500000 --eval-every 5000 --n-eval 10 --n-runs 10;
-uv run python train.py --algo td3 --layer-norm 0 --steps 500000 --eval-every 5000 --n-eval 10 --n-runs 10;
-uv run python train.py --algo td3 --layer-norm 1 --steps 500000 --eval-every 5000 --n-eval 10 --n-runs 10
+uv run python train.py --all-variants --steps 500000 --eval-every 5000 --n-eval 10 --n-runs 10

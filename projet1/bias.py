@@ -44,9 +44,7 @@ def parallel_rollouts(actor, seeds):
 
     while not finished.all():
         obs_t = torch.as_tensor(obs, dtype=torch.float32)
-        action = torch.cat(
-            [actor.act(obs_t[i:i + 1]) for i in range(len(seeds))]
-        ).numpy()
+        action = actor.act(obs_t).numpy()
         next_obs, reward, terminated, truncated, _ = env.step(action)
         active = ~finished
 
