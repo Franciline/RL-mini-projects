@@ -35,6 +35,14 @@ LAYER_LABELS = {0: "without LayerNorm", 1: "with LayerNorm"}
 LAYER_COLORS = {0: "tab:blue", 1: "tab:orange"}
 
 
+def resolve_experiments(values):
+    if len(values) == 1 and re.fullmatch(r"\d{8}-\d{6}", values[0]):
+        timestamp = values[0]
+        return [Path("results") / f"{timestamp}_{algo}_ln{layer_norm}"
+                for algo in ("ddpg", "td3") for layer_norm in (0, 1)]
+    return values
+
+
 def load_experiments(paths):
     frames, bias_arrays, configs = [], {}, []
     for path in map(Path, paths):
@@ -184,11 +192,12 @@ def plot_q_vs_mc(data, output_dir, timestamp):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("experiments", nargs="+", help="experiment result directories")
+    parser.add_argument("experiments", nargs="+",
+                        help="shared timestamp or explicit experiment directories")
     parser.add_argument("--output-dir", default="plots")
     args = parser.parse_args()
 
-    data, bias_arrays = load_experiments(args.experiments)
+    data, bias_arrays = load_experiments(resolve_experiments(args.experiments))
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")

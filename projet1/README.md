@@ -86,21 +86,19 @@ results/20261004-153012_td3_ln1/
 | `--steps` | positive integer | `200000` | Total number of environment transitions to collect. |
 | `--buffer-size` | positive integer | `1000000` | Maximum number of transitions stored in the replay buffer. |
 | `--learning-starts` | non-negative integer | `5000` | Replay-buffer transitions collected before gradient updates begin. |
-| `--batch-size` | positive integer | `100` | Replay-buffer transitions sampled per gradient update. |
+| `--batch-size` | positive integer | `256` | Replay-buffer transitions sampled per gradient update. |
 | `--eval-every` | positive integer | `5000` | Number of training-environment steps between evaluations after warm-up. |
 | `--n-eval` | positive integer | `10` | Number of deterministic episodes, using fixed seeds, per evaluation. |
 
 ### Plots
 
-Pass the experiment directories to compare. Plot filenames contain a timestamp, so existing plots are not overwritten.
+Pass the shared timestamp produced by `--all-variants`. Plot filenames contain a new timestamp, so existing plots are not overwritten.
 
 ```bash
-python plots.py \
-  results/20261004-151500_ddpg_ln0 \
-  results/20261004-164051_ddpg_ln1 \
-  results/20261004-165158_td3_ln0 \
-  results/20261004-170119_td3_ln1 
+python plots.py 20261005-113723
 ```
+
+Explicit experiment directories are still accepted for older or separately run experiments.
 
 The command saves performance, bias, bias distribution, episode length, and Q-versus-Monte-Carlo plots in `plots/`.
 
