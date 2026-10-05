@@ -24,7 +24,7 @@ def mlp(sizes,layer_norm=False):
 # Actor returns an Action 
 class DetActor(Actor[Action]):
     """sigma: standard deviation of exploration noise. Default hidden dim = 2.""" 
-    def __init__(self, obs_dim, act_dim, hidden=(400,300), layer_norm=False, sigma=0.1):
+    def __init__(self, obs_dim, act_dim, hidden=(256,256), layer_norm=False, sigma=0.1):
         super().__init__()
         self.net = mlp([obs_dim,*hidden,act_dim],layer_norm)
         self.sigma = sigma
@@ -50,7 +50,7 @@ class DetActor(Actor[Action]):
 # we compare this output to monte carlo 
 
 class Critic(nn.Module):
-    def __init__(self, obs_dim,act_dim,hidden=(400,300),layer_norm=False):
+    def __init__(self, obs_dim,act_dim,hidden=(256,256),layer_norm=False):
         super().__init__()
         # input is obs_dim + act_dim bc action is continuous. output is 1 = Q val
         self.net = mlp([obs_dim + act_dim, *hidden, 1], layer_norm)
@@ -67,7 +67,8 @@ class Critic(nn.Module):
 
 class DDPG:
     """gamma: discount factor. tao: how fast targets follow main networks (default 0.5% per step)."""
-    def __init__(self, obs_dim, act_dim, layer_norm=False, hidden=(400,300),lr=1e-3, gamma=0.99, tau=0.005, sigma=0.1):
+    def __init__(self, obs_dim, act_dim, layer_norm=False, hidden=(256,256),
+                 actor_lr=1e-4, critic_lr=1e-3, gamma=0.99, tau=0.005, sigma=0.1):
         # online networks
         self.actor = DetActor(obs_dim, act_dim, hidden, layer_norm, sigma)
         self.critic = Critic(obs_dim, act_dim, hidden, layer_norm)    
@@ -77,8 +78,8 @@ class DDPG:
         self.critic_targ = copy.deepcopy(self.critic)
 
         # optimizers
-        self.actor_opt = torch.optim.Adam(self.actor.parameters(), lr=lr)
-        self.critic_opt = torch.optim.Adam(self.critic.parameters(), lr=lr)
+        self.actor_opt = torch.optim.Adam(self.actor.parameters(), lr=actor_lr)
+        self.critic_opt = torch.optim.Adam(self.critic.parameters(), lr=critic_lr)
 
         self.gamma, self.tau = gamma, tau
 
@@ -115,7 +116,8 @@ class DDPG:
 
 class TD3:
     """gamma: discount factor. tao: how fast targets follow main networks (default 0.5% per step)."""
-    def __init__(self, obs_dim, act_dim, layer_norm=False, hidden=(400,300),lr=1e-3, gamma=0.99, tau=0.005, sigma=0.1,
+    def __init__(self, obs_dim, act_dim, layer_norm=False, hidden=(256,256),
+                 actor_lr=1e-4, critic_lr=1e-3, gamma=0.99, tau=0.005, sigma=0.1,
                  policy_delay = 2, target_noise_clip = 0.5, target_noise = 0.2): 
 
         # online networks
@@ -129,9 +131,9 @@ class TD3:
         self.critic_targ_Q2 = copy.deepcopy(self.critic_Q2)
 
         # optimizers
-        self.actor_opt = torch.optim.Adam(self.actor.parameters(), lr=lr)
-        self.critic_opt_Q1 = torch.optim.Adam(self.critic_Q1.parameters(), lr=lr)
-        self.critic_opt_Q2 = torch.optim.Adam(self.critic_Q2.parameters(), lr=lr)
+        self.actor_opt = torch.optim.Adam(self.actor.parameters(), lr=actor_lr)
+        self.critic_opt_Q1 = torch.optim.Adam(self.critic_Q1.parameters(), lr=critic_lr)
+        self.critic_opt_Q2 = torch.optim.Adam(self.critic_Q2.parameters(), lr=critic_lr)
 
         self.gamma, self.tau = gamma, tau
         self.policy_delay = policy_delay # policy delay is K steps

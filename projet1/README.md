@@ -80,15 +80,51 @@ results/20261004-153012_td3_ln1/
 | `--algo` | `ddpg`, `td3` | `ddpg` | Reinforcement-learning algorithm to train. |
 | `--layer-norm` | `0`, `1` | `0` | Disable (`0`) or enable (`1`) LayerNorm in actor and critic hidden layers. |
 | `--all-variants` | flag | disabled | Run both algorithms with LayerNorm disabled and enabled. Ignores `--algo` and `--layer-norm`. |
+| `--params` | JSON path | none | Load hyperparameters produced by `search.py`. Cannot be combined with `--all-variants`. |
 | `--seed` | integer | `0` | Seed for a single run. Cannot be combined with `--n-runs` greater than 1. |
 | `--n-runs` | positive integer | `1` | Number of independent runs. Multiple runs use seeds `0` through `n-runs - 1`. |
 | `--jobs` | positive integer | `5` | Maximum concurrent runs. Limited automatically to `--n-runs`. |
 | `--steps` | positive integer | `200000` | Total number of environment transitions to collect. |
-| `--buffer-size` | positive integer | `1000000` | Maximum number of transitions stored in the replay buffer. |
+| `--buffer-size` | positive integer | `100000` | Maximum number of transitions stored in the replay buffer. |
 | `--learning-starts` | non-negative integer | `5000` | Replay-buffer transitions collected before gradient updates begin. |
-| `--batch-size` | positive integer | `256` | Replay-buffer transitions sampled per gradient update. |
-| `--eval-every` | positive integer | `5000` | Number of training-environment steps between evaluations after warm-up. |
+| `--batch-size` | positive integer | `100` | Replay-buffer transitions sampled per gradient update. |
+| `--eval-every` | positive integer | `10000` | Number of training-environment steps between evaluations after warm-up. |
 | `--n-eval` | positive integer | `10` | Number of deterministic episodes, using fixed seeds, per evaluation. |
+
+### Hyperparameter search
+
+Search DDPG and TD3 without LayerNorm. Each trial trains two seeds by default and
+is scored by the mean return over their last three checkpoints:
+
+```bash
+uv run python search.py --algo both --trials 30 --steps 50000 --n-runs 2 --jobs 3
+```
+
+The command creates:
+
+```text
+search_results/<timestamp>/
+├── config.json
+├── optuna.db
+├── ddpg_best_params.json
+├── ddpg_trials.csv
+├── td3_best_params.json
+└── td3_trials.csv
+```
+
+Resume or extend a search by passing its directory and a larger total trial count:
+
+```bash
+uv run python search.py --algo both --trials 50 \
+  --output-dir search_results/<timestamp>
+```
+
+Train with the selected parameters:
+
+```bash
+uv run python train.py --algo ddpg --layer-norm 0 \
+  --params search_results/<timestamp>/ddpg_best_params.json --n-runs 10
+```
 
 ### Plots
 
