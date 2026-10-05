@@ -11,6 +11,8 @@ import pandas as pd
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+plt.style.use("seaborn-v0_8-darkgrid")
+
 
 REQUIRED_COLUMNS = {
     "step",

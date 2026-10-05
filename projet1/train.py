@@ -72,12 +72,12 @@ def main():
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--n-runs", type=int, default=1,
                    help="sequential runs; seeds are 0 to n-runs - 1")
-    p.add_argument("--steps", type=int, default=200_000)
-    p.add_argument("--buffer-size", type=int, default=200_000)
-    p.add_argument("--learning-starts", type=int, default=5_000)
-    p.add_argument("--batch-size", type=int, default=256)
+    p.add_argument("--steps", type=int, default=200_000) # not 1M
+    p.add_argument("--buffer-size", type=int, default=100_000) # changed, run Alan 500k, me 100k 
+    p.add_argument("--learning-starts", type=int, default=5_000) # warmup
+    p.add_argument("--batch-size", type=int, default=100)
     p.add_argument("--eval-every", type=int, default=5_000)
-    p.add_argument("--n-eval", type=int, default=20, help="episodes (fixed seeds) per checkpoint")
+    p.add_argument("--n-eval", type=int, default=10, help="episodes (fixed seeds) per checkpoint")
     args = p.parse_args()
 
     if args.n_runs < 1:

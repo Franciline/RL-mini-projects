@@ -76,11 +76,11 @@ results/20261004-153012_td3_ln1/
 | `--seed` | integer | `0` | Seed for a single run. Cannot be combined with `--n-runs` greater than 1. |
 | `--n-runs` | positive integer | `1` | Number of sequential runs. Multiple runs use seeds `0` through `n-runs - 1`. |
 | `--steps` | positive integer | `200000` | Total number of environment transitions to collect. |
-| `--buffer-size` | positive integer | `200000` | Maximum number of transitions stored in the replay buffer. |
+| `--buffer-size` | positive integer | `1000000` | Maximum number of transitions stored in the replay buffer. |
 | `--learning-starts` | non-negative integer | `5000` | Replay-buffer transitions collected before gradient updates begin. |
-| `--batch-size` | positive integer | `256` | Replay-buffer transitions sampled per gradient update. |
+| `--batch-size` | positive integer | `100` | Replay-buffer transitions sampled per gradient update. |
 | `--eval-every` | positive integer | `5000` | Number of training-environment steps between evaluations after warm-up. |
-| `--n-eval` | positive integer | `20` | Number of deterministic episodes, using fixed seeds, per evaluation. |
+| `--n-eval` | positive integer | `10` | Number of deterministic episodes, using fixed seeds, per evaluation. |
 
 ### Plots
 
@@ -88,10 +88,10 @@ Pass the experiment directories to compare. Plot filenames contain a timestamp, 
 
 ```bash
 python plots.py \
-  results/20261004-120000_ddpg_ln0 \
-  results/20261004-130000_ddpg_ln1 \
-  results/20261004-140000_td3_ln0 \
-  results/20261004-150000_td3_ln1
+  results/20261004-151500_ddpg_ln0 \
+  results/20261004-164051_ddpg_ln1 \
+  results/20261004-165158_td3_ln0 \
+  results/20261004-170119_td3_ln1 
 ```
 
 The command saves performance, bias, bias distribution, episode length, and Q-versus-Monte-Carlo plots in `plots/`.
@@ -110,3 +110,9 @@ python record.py --weights results/20261004-120000_ddpg_ln0/seed0_best.pt --laye
 | `--episodes` | positive integer | `1` | Number of episodes to record. |
 | `--seed` | integer | `0` | Seed for the first episode; later episodes use consecutive seeds. |
 | `--out` | directory path | `videos` | Directory where video files are saved. |
+
+
+uv run python train.py --algo ddpg --layer-norm 0 --steps 500000 --eval-every 5000 --n-eval 10 --n-runs 10;
+uv run python train.py --algo ddpg --layer-norm 1 --steps 500000 --eval-every 5000 --n-eval 10 --n-runs 10;
+uv run python train.py --algo td3 --layer-norm 0 --steps 500000 --eval-every 5000 --n-eval 10 --n-runs 10;
+uv run python train.py --algo td3 --layer-norm 1 --steps 500000 --eval-every 5000 --n-eval 10 --n-runs 10
