@@ -10,11 +10,7 @@ import optuna
 from train import train
 
 
-def sample_parameters(trial, algo, steps):
-    learning_starts = [value for value in (1_000, 5_000, 10_000) if value < steps]
-    if not learning_starts:
-        learning_starts = [max(1, steps // 5)]
-
+def sample_parameters(trial, algo):
     agent = {
         "actor_lr": trial.suggest_float("actor_lr", 1e-5, 1e-3, log=True),
         "critic_lr": trial.suggest_float("critic_lr", 1e-4, 3e-3, log=True),
@@ -32,22 +28,19 @@ def sample_parameters(trial, algo, steps):
         })
     training = {
         "batch_size": trial.suggest_categorical("batch_size", [64, 100, 128, 256]),
-        "learning_starts": trial.suggest_categorical(
-            "learning_starts", learning_starts
-        ),
     }
     return agent, training
 
 
 def objective(trial, algo, settings):
-    agent_params, training_params = sample_parameters(trial, algo, settings["steps"])
+    agent_params, training_params = sample_parameters(trial, algo)
     print(f"{algo.upper()} trial {trial.number} started", flush=True)
     args = argparse.Namespace(
         algo=algo,
         layer_norm=0,
         steps=settings["steps"],
         buffer_size=settings["buffer_size"],
-        learning_starts=training_params["learning_starts"],
+        learning_starts=settings["learning_starts"],
         batch_size=training_params["batch_size"],
         eval_every=settings["eval_every"],
         n_eval=settings["n_eval"],
@@ -121,6 +114,7 @@ def run_study(algo, settings, output_dir, storage, jobs, trials, seed):
         "layer_norm": False,
         **study.best_params,
         "hidden": [256, 256],
+        "learning_starts": settings["learning_starts"],
         "steps": settings["steps"],
         "n_runs": settings["n_runs"],
         "objective": study.best_value,
@@ -142,6 +136,7 @@ def main():
     parser.add_argument("--jobs", type=int, default=3,
                         help="maximum concurrent trials")
     parser.add_argument("--buffer-size", type=int, default=100_000)
+    parser.add_argument("--learning-starts", type=int, default=5_000)
     parser.add_argument("--eval-every", type=int, default=10_000)
     parser.add_argument("--n-eval", type=int, default=5)
     parser.add_argument("--eval-seed-start", type=int, default=200_000)
@@ -151,9 +146,12 @@ def main():
     args = parser.parse_args()
 
     for name in ("trials", "steps", "n_runs", "jobs", "buffer_size",
+                 "learning_starts",
                  "eval_every", "n_eval"):
         if getattr(args, name) < 1:
             parser.error(f"--{name.replace('_', '-')} must be at least 1")
+    if args.learning_starts >= args.steps:
+        parser.error("--learning-starts must be smaller than --steps")
 
     created_at = datetime.now().strftime("%Y%m%d-%H%M%S")
     output_dir = Path(args.output_dir or f"search_results/{created_at}")
@@ -162,6 +160,7 @@ def main():
         "steps": args.steps,
         "n_runs": args.n_runs,
         "buffer_size": args.buffer_size,
+        "learning_starts": args.learning_starts,
         "eval_every": args.eval_every,
         "n_eval": args.n_eval,
         "eval_seed_start": args.eval_seed_start,
@@ -170,8 +169,9 @@ def main():
     if config_path.is_file():
         with config_path.open() as file:
             previous = json.load(file)
-        comparable = ("algo", "steps", "n_runs", "buffer_size", "eval_every",
-                      "n_eval", "eval_seed_start", "seed")
+        comparable = ("algo", "steps", "n_runs", "buffer_size",
+                      "learning_starts", "eval_every", "n_eval",
+                      "eval_seed_start", "seed")
         changed = [name for name in comparable
                    if previous.get(name) != getattr(args, name)]
         if changed:

@@ -51,7 +51,8 @@ def train(args, seed, result_dir=None, agent_kwargs=None,
     rows, best_return, best_state = [], -float("inf"), None
     first_bias = last_bias = None
     train_episodes = 0
-    next_eval = args.learning_starts
+    next_eval = ((args.learning_starts + args.eval_every - 1)
+                 // args.eval_every * args.eval_every)
 
     while collector.steps < args.steps:
         if collector.steps >= args.learning_starts:
@@ -78,7 +79,7 @@ def train(args, seed, result_dir=None, agent_kwargs=None,
                       f"step {collector.steps}: return {metrics['return']:.1f}  "
                       f"bias {metrics['bias_mean']:.2f}  mae {metrics['bias_mae']:.2f}  "
                       f"episodes {train_episodes}", flush=True)
-            next_eval = collector.steps + args.eval_every
+            next_eval += args.eval_every
 
     if result_dir is not None:
         name = f"seed{seed}"
