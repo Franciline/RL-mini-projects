@@ -6,6 +6,7 @@ import random
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 
+import gymnasium as gym
 import numpy as np
 import pandas as pd
 import torch
@@ -32,6 +33,7 @@ def train(args, seed, result_dir):
     collector = TransitionCollector(env, agent.actor)
     buffer = ReplayBuffer(args.buffer_size)
     eval_seeds = [EVAL_SEED0 + i for i in range(args.n_eval)]
+    eval_env = gym.make_vec(ENV, num_envs=args.n_eval, continuous=True)
 
     rows, best_return, best_state = [], -float("inf"), None
     first_bias = last_bias = None
@@ -44,7 +46,7 @@ def train(args, seed, result_dir):
         agent.update(buffer.sample(args.batch_size))
 
         if collector.steps >= next_eval:
-            metrics, bias = bias_eval(agent, eval_seeds, gamma=agent.gamma)
+            metrics, bias = bias_eval(agent, eval_seeds, eval_env, gamma=agent.gamma)
             rows.append({"step": collector.steps, **metrics})
             if first_bias is None:
                 first_bias = bias
@@ -64,6 +66,7 @@ def train(args, seed, result_dir):
         np.save(os.path.join(result_dir, f"{name}_bias_last.npy"), last_bias)
         torch.save(best_state, os.path.join(result_dir, f"{name}_best.pt"))
     torch.save(agent.actor.state_dict(), os.path.join(result_dir, f"{name}_final.pt"))
+    eval_env.close()
     env.gym_env.close()
 
 

@@ -28,13 +28,12 @@ def rollout(actor,seed):
             terminated) # if terminated true, then episode ended in true state with future reward 0, if false then capped at 1K step
 
 
-def parallel_rollouts(actor, seeds):
+def parallel_rollouts(actor, seeds, env):
     """Run one deterministic episode per seed in a vectorized environment."""
     seeds = list(seeds)
     if not seeds:
         raise ValueError("seeds must not be empty")
 
-    env = gym.make_vec(ENV, num_envs=len(seeds), continuous=True)
     obs, _ = env.reset(seed=seeds)
     observations = [[] for _ in seeds]
     actions = [[] for _ in seeds]
@@ -58,7 +57,6 @@ def parallel_rollouts(actor, seeds):
         finished |= done
         obs = next_obs
 
-    env.close()
     return [
         (
             np.asarray(observations[i], dtype=np.float32),
@@ -83,10 +81,10 @@ def discounted_returns(rewards, gamma, terminated):
     return G, valid
  
  
-def bias_eval(agent, seeds, gamma=0.99):
+def bias_eval(agent, seeds, env, gamma=0.99):
     """Q(s,a) - G_t over all steps of one deterministic episode per seed."""
     qs, gs, returns, lengths = [], [], [], []
-    for obs, act, rew, term in parallel_rollouts(agent.actor, seeds):
+    for obs, act, rew, term in parallel_rollouts(agent.actor, seeds, env):
         G, valid = discounted_returns(rew, gamma, term)
         with torch.no_grad():
             q = agent.critic(torch.as_tensor(obs), torch.as_tensor(act)).numpy()
