@@ -34,7 +34,7 @@ class RandomActor(Actor[Action]):
 
 
 def train(args, seed, result_dir=None, agent_kwargs=None,
-          eval_seed0=EVAL_SEED0, verbose=True):
+          eval_seed0=EVAL_SEED0, verbose=True, log_prefix=""):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -74,10 +74,10 @@ def train(args, seed, result_dir=None, agent_kwargs=None,
                 best_return = metrics["return"]
                 best_state = copy.deepcopy(agent.actor.state_dict())
             if verbose:
-                print(f"{args.algo} ln{args.layer_norm}, seed {seed}, "
+                print(f"{log_prefix}{args.algo} ln{args.layer_norm}, seed {seed}, "
                       f"step {collector.steps}: return {metrics['return']:.1f}  "
                       f"bias {metrics['bias_mean']:.2f}  mae {metrics['bias_mae']:.2f}  "
-                      f"episodes {train_episodes}")
+                      f"episodes {train_episodes}", flush=True)
             next_eval = collector.steps + args.eval_every
 
     if result_dir is not None:

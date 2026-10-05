@@ -41,6 +41,7 @@ def sample_parameters(trial, algo, steps):
 
 def objective(trial, algo, settings):
     agent_params, training_params = sample_parameters(trial, algo, settings["steps"])
+    print(f"{algo.upper()} trial {trial.number} started", flush=True)
     args = argparse.Namespace(
         algo=algo,
         layer_norm=0,
@@ -59,7 +60,8 @@ def objective(trial, algo, settings):
             seed,
             agent_kwargs=agent_params,
             eval_seed0=settings["eval_seed_start"],
-            verbose=False,
+            verbose=True,
+            log_prefix=f"{algo.upper()} trial {trial.number}: ",
         )
         tail = rows[-3:]
         scores.append(float(np.mean([row["return"] for row in tail])))
