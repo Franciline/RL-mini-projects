@@ -27,7 +27,7 @@ COMPARISON_KEYS = (
     "steps",
     "buffer_size",
     "learning_starts",
-    "batch_size",
+    # "batch_size",
     "eval_every",
     "n_eval",
 )

@@ -100,6 +100,9 @@ is scored by the mean return over their last three checkpoints:
 uv run python search.py --algo both --trials 30 --steps 50000 --n-runs 2 --jobs 3
 ```
 
+Warm-up is fixed at `5000` steps for every trial. Evaluations occur at fixed
+multiples of `--eval-every`, so trials are compared at identical training steps.
+
 The command creates:
 
 ```text
@@ -125,6 +128,30 @@ Train with the selected parameters:
 uv run python train.py --algo ddpg --layer-norm 0 \
   --params search_results/<timestamp>/ddpg_best_params.json --n-runs 10
 ```
+
+#### Hyperparameter selection results
+
+Optuna first compared 10 parameter sets per algorithm without LayerNorm, using
+one seed, 30,000 training steps, and three evaluation episodes at steps 10k,
+20k, and 30k. For each algorithm, the best-return trial and a lower-bias
+alternative were then validated from scratch with two seeds, 50,000 steps, and
+five evaluation episodes per checkpoint.
+
+| Algorithm | Candidate | Last-three return | Final return | Final bias MAE | Choice |
+| --- | --- | ---: | ---: | ---: | --- |
+| DDPG | Optuna best return | -91.33 | -121.03 | 157.87 | — |
+| DDPG | Lower-bias trial 8 | **-36.95** | **-35.73** | **65.78** | Selected |
+| TD3 | Optuna best return | **-22.32** | **13.85** | 41.71 | Selected |
+| TD3 | Lower-bias trial 0 | -53.93 | -16.77 | **40.77** | — |
+
+The selected DDPG configuration uses `actor_lr=1.91e-5`,
+`critic_lr=1.96e-4`, `gamma=0.9847`, `tau=0.0110`, `sigma=0.2921`, and
+`batch_size=128`. The selected TD3 configuration uses `actor_lr=6.94e-4`,
+`critic_lr=7.20e-4`, `gamma=0.9937`, `tau=0.0188`, `sigma=0.2363`,
+`policy_delay=3`, `target_noise=0.2776`, `target_noise_clip=0.5296`, and
+`batch_size=256`. Both use `[256, 256]` hidden layers and 5,000 random warm-up
+steps. These configurations are used for the final long, multi-seed LayerNorm
+comparison.
 
 ### Plots
 

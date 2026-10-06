@@ -109,7 +109,7 @@ def main():
     p.add_argument("--steps", type=int, default=200_000) # not 1M
     p.add_argument("--buffer-size", type=int, default=100_000) # changed, run Alan 500k, me 100k 
     p.add_argument("--learning-starts", type=int, default=5_000) # warmup
-    p.add_argument("--batch-size", type=int, default=100)
+    p.add_argument("--batch-size", type=int, default=128) # changed from 100 because optuna
     p.add_argument("--eval-every", type=int, default=10_000)
     p.add_argument("--n-eval", type=int, default=10, help="episodes (fixed seeds) per checkpoint")
     args = p.parse_args()
