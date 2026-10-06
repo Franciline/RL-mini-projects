@@ -1,0 +1,22 @@
+{
+  "algo": "td3",
+  "layer_norm": false,
+  "actor_lr": 6.942602933634003e-05,
+  "critic_lr": 0.0027202964855995125,
+  "tau": 0.0038592844609403906,
+  "sigma": 0.23490992789263349,
+  "gamma": 0.9825212368158588,
+  "policy_delay": 2,
+  "target_noise": 0.14480557449595277,
+  "target_noise_clip": 0.6344012529076896,
+  "batch_size": 100,
+  "learning_starts": 10000,
+  "hidden": [
+    256,
+    256
+  ],
+  "steps": 30000,
+  "n_runs": 1,
+  "objective": -9.124519348144537,
+  "bias_mae": 30.372600555419922
+}

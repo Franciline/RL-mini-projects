@@ -155,7 +155,8 @@ comparison.
 
 ### Plots
 
-Pass the shared timestamp produced by `--all-variants`. Plot filenames contain a new timestamp, so existing plots are not overwritten.
+Pass the shared timestamp produced by `--all-variants`. Plot filenames describe
+their contents, for example `return.png` and `bias_mean.png`.
 
 ```bash
 python plots.py 20261005-113723

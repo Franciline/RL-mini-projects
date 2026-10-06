@@ -1,0 +1,15 @@
+{
+  "algo": "td3",
+  "layer_norm": false,
+  "actor_lr": 0.00012329353428173963,
+  "critic_lr": 0.0001794179580941495,
+  "gamma": 0.9888305007518554,
+  "tau": 0.012873299354004551,
+  "sigma": 0.09505585269837273,
+  "policy_delay": 2,
+  "target_noise": 0.21093975009214969,
+  "target_noise_clip": 0.3328104712152658,
+  "batch_size": 64,
+  "hidden": [256, 256],
+  "learning_starts": 5000
+}

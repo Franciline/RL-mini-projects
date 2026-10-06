@@ -1,0 +1,16 @@
+{
+  "algo": "both",
+  "trials": 10,
+  "steps": 30000,
+  "n_runs": 1,
+  "jobs": 4,
+  "buffer_size": 100000,
+  "learning_starts": 5000,
+  "eval_every": 10000,
+  "n_eval": 3,
+  "eval_seed_start": 200000,
+  "seed": 0,
+  "output_dir": null,
+  "layer_norm": false,
+  "created_at": "20261005-231809"
+}

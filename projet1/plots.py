@@ -1,7 +1,6 @@
 import argparse
 import json
 import re
-from datetime import datetime
 from pathlib import Path
 
 import matplotlib
@@ -31,8 +30,20 @@ COMPARISON_KEYS = (
     "eval_every",
     "n_eval",
 )
-LAYER_LABELS = {0: "without LayerNorm", 1: "with LayerNorm"}
+LAYER_LABELS = {0: "without LN", 1: "with LN"}
 LAYER_COLORS = {0: "tab:blue", 1: "tab:orange"}
+CONDITION_COLORS = {
+    ("ddpg", 0): "tab:blue",
+    ("ddpg", 1): "tab:blue",
+    ("td3", 0): "tab:orange",
+    ("td3", 1): "tab:orange",
+}
+CONDITION_COLORS_4 = {
+    ("ddpg", 0): "tab:blue",
+    ("ddpg", 1): "tab:orange",
+    ("td3", 0): "tab:green",
+    ("td3", 1): "tab:red",
+}
 
 
 def resolve_experiments(values):
@@ -73,8 +84,11 @@ def load_experiments(paths):
             for stage in ("first", "last"):
                 bias_path = path / f"seed{seed}_bias_{stage}.npy"
                 if bias_path.is_file():
+                    bias = np.load(bias_path)
                     key = (config["algo"], int(config["layer_norm"]), stage)
-                    bias_arrays.setdefault(key, []).append(np.load(bias_path))
+                    bias_arrays.setdefault(key, []).append(bias)
+                    seed_key = (config["algo"], int(config["layer_norm"]), seed, stage)
+                    bias_arrays.setdefault(seed_key, []).append(bias)
 
     reference = configs[0]
     for config in configs[1:]:
@@ -89,15 +103,15 @@ def load_experiments(paths):
     return data, bias_arrays
 
 
-def save_figure(fig, output_dir, timestamp, name):
-    path = output_dir / f"{timestamp}_{name}.png"
+def save_figure(fig, output_dir, name):
+    path = output_dir / f"{name}.png"
     fig.tight_layout()
     fig.savefig(path, dpi=180, bbox_inches="tight")
     plt.close(fig)
     print(path)
 
 
-def plot_metric(data, metric, ylabel, title, output_dir, timestamp, zero=False):
+def plot_metric(data, metric, ylabel, title, output_dir, zero=False, scientific_x=False):
     algorithms = sorted(data["algo"].unique())
     fig, axes = plt.subplots(1, len(algorithms), figsize=(6 * len(algorithms), 4), squeeze=False)
     for ax, algorithm in zip(axes[0], algorithms):
@@ -112,64 +126,99 @@ def plot_metric(data, metric, ylabel, title, output_dir, timestamp, zero=False):
             ax.fill_between(summary["step"], summary["mean"] - std,
                             summary["mean"] + std, color=color, alpha=0.2)
         if zero:
-            ax.axhline(0, color="black", linewidth=1, linestyle="--")
+            ax.axhline(0, color="black", linewidth=1, linestyle="--", alpha=0.5)
         ax.set_title(algorithm.upper())
         ax.set_xlabel("training steps")
         ax.set_ylabel(ylabel)
+        if scientific_x:
+            ax.set_xlabel("Training steps")
+            ax.ticklabel_format(axis="x", style="sci", scilimits=(0, 0), useMathText=False)
         ax.grid(alpha=0.25)
         ax.legend()
-    fig.suptitle(f"{title} (mean ± std across training seeds)")
-    save_figure(fig, output_dir, timestamp, metric)
+    fig.suptitle(f"{title} (mean ± std)")
+    save_figure(fig, output_dir, metric)
 
 
-def plot_bias_vs_performance(data, output_dir, timestamp):
+def plot_metric_combined(data, metric, ylabel, title, output_dir, zero=False,
+                         colors=CONDITION_COLORS, suffix="combined", dashed_ln=True):
+    fig, ax = plt.subplots(figsize=(8, 5))
+    conditions = sorted(data[["algo", "layer_norm"]]
+                        .drop_duplicates().itertuples(index=False, name=None))
+    for algorithm, layer_norm in conditions:
+        values = data[(data["algo"] == algorithm)
+                      & (data["layer_norm"] == layer_norm)]
+        summary = values.groupby("step")[metric].agg(["mean", "std"]).reset_index()
+        std = summary["std"].fillna(0)
+        color = colors[(algorithm, layer_norm)]
+        label = f"{algorithm.upper()} - {LAYER_LABELS[layer_norm]}"
+        linestyle = "--" if dashed_ln and layer_norm else "-"
+        ax.plot(summary["step"], summary["mean"], color=color,
+                linestyle=linestyle,
+                alpha=0.75 if dashed_ln and layer_norm else 1.0, label=label)
+        ax.fill_between(summary["step"], summary["mean"] - std,
+                        summary["mean"] + std, color=color, alpha=0.10)
+    if zero:
+        ax.axhline(0, color="black", linewidth=1, linestyle="--", alpha=0.5)
+    ax.set_xlabel("Training steps")
+    ax.set_ylabel(ylabel)
+    ax.ticklabel_format(axis="x", style="sci", scilimits=(0, 0), useMathText=False)
+    ax.legend()
+    fig.suptitle(f"{title} (mean ± std)")
+    save_figure(fig, output_dir, f"{metric}_{suffix}")
+
+
+def plot_bias_vs_performance(data, output_dir, metric="bias_mean"):
+    is_mae = metric == "bias_mae"
     algorithms = sorted(data["algo"].unique())
     fig, axes = plt.subplots(1, len(algorithms), figsize=(6 * len(algorithms), 4), squeeze=False)
     for ax, algorithm in zip(axes[0], algorithms):
         subset = data[data["algo"] == algorithm]
         for layer_norm in sorted(subset["layer_norm"].unique()):
             values = subset[subset["layer_norm"] == layer_norm]
-            x, y = values["bias_mean"].to_numpy(), values["return"].to_numpy()
+            x, y = values[metric].to_numpy(), values["return"].to_numpy()
             color = LAYER_COLORS[layer_norm]
             label = LAYER_LABELS[layer_norm]
-            if len(x) > 1 and np.ptp(x) > 0:
-                correlation = np.corrcoef(x, y)[0, 1]
-                label += f" (r={correlation:.2f})"
-                slope, intercept = np.polyfit(x, y, 1)
-                line_x = np.linspace(x.min(), x.max(), 100)
-                ax.plot(line_x, slope * line_x + intercept, color=color, linewidth=1)
-            ax.scatter(x, y, color=color, alpha=0.65, label=label)
-        ax.axvline(0, color="black", linewidth=1, linestyle="--")
+            ax.scatter(x, y, s=18, color=color, alpha=0.65, label=label)
+        if not is_mae:
+            ax.axvline(0, color="black", linewidth=1, linestyle="--", alpha=0.5)
         ax.set_title(algorithm.upper())
-        ax.set_xlabel("mean signed bias Q(s,a) - G")
-        ax.set_ylabel("mean episode return")
+        ax.set_xlabel(r"MAE $|Q_\theta - G_t|$" if is_mae
+                      else r"Mean $(Q_\theta - G_t)$")
+        ax.set_ylabel("Average return")
         ax.grid(alpha=0.25)
         ax.legend()
-    fig.suptitle("Overestimation bias versus performance")
-    save_figure(fig, output_dir, timestamp, "bias_vs_performance")
+    fig.suptitle("Critic Q-value MAE vs performance" if is_mae
+                 else "Overestimation bias vs performance")
+    save_figure(fig, output_dir,
+                "bias_mae_vs_performance" if is_mae else "bias_vs_performance")
 
 
-def plot_bias_distributions(data, bias_arrays, output_dir, timestamp):
+def plot_bias_distributions(data, bias_arrays, output_dir, seed=None):
     algorithms = sorted(data["algo"].unique())
     fig, axes = plt.subplots(len(algorithms), 2, figsize=(12, 4 * len(algorithms)), squeeze=False)
     for row, algorithm in enumerate(algorithms):
         for column, stage in enumerate(("first", "last")):
             ax = axes[row, column]
             for layer_norm in sorted(data.loc[data["algo"] == algorithm, "layer_norm"].unique()):
-                arrays = bias_arrays.get((algorithm, layer_norm, stage), [])
+                key = ((algorithm, layer_norm, stage) if seed is None
+                       else (algorithm, layer_norm, seed, stage))
+                arrays = bias_arrays.get(key, [])
                 if arrays:
                     ax.hist(np.concatenate(arrays), bins=50, density=True, alpha=0.4,
                             color=LAYER_COLORS[layer_norm], label=LAYER_LABELS[layer_norm])
-            ax.axvline(0, color="black", linewidth=1, linestyle="--")
-            ax.set_title(f"{algorithm.upper()} — {stage} evaluation")
-            ax.set_xlabel("bias Q(s,a) - G")
-            ax.set_ylabel("density")
+            ax.axvline(0, color="black", linewidth=1, linestyle="--", alpha=0.5)
+            ax.set_title(f"{algorithm.upper()} - {stage} evaluation")
+            ax.set_xlabel(r"Bias $Q_\theta(s,a) - G_t$")
+            ax.set_ylabel("Probability density")
             ax.legend()
-    fig.suptitle("Bias distributions at first and last evaluations")
-    save_figure(fig, output_dir, timestamp, "bias_distribution_first_last")
+    scope = "all training seeds" if seed is None else f"training seed {seed}"
+    fig.suptitle(f"Bias distributions at first and last evaluations ({scope})")
+    name = ("bias_distribution_first_last" if seed is None
+            else f"bias_distribution_seed{seed}_first_last")
+    save_figure(fig, output_dir, name)
 
 
-def plot_q_vs_mc(data, output_dir, timestamp):
+def plot_q_vs_mc(data, output_dir):
     conditions = sorted(data[["algo", "layer_norm"]].drop_duplicates().itertuples(index=False, name=None))
     fig, axes = plt.subplots(1, len(conditions), figsize=(5 * len(conditions), 4), squeeze=False)
     for ax, (algorithm, layer_norm) in zip(axes[0], conditions):
@@ -181,13 +230,14 @@ def plot_q_vs_mc(data, output_dir, timestamp):
             ax.plot(summary["step"], summary["mean"], color=color, label=label)
             ax.fill_between(summary["step"], summary["mean"] - std,
                             summary["mean"] + std, color=color, alpha=0.2)
-        ax.set_title(f"{algorithm.upper()} — {LAYER_LABELS[layer_norm]}")
-        ax.set_xlabel("training steps")
-        ax.set_ylabel("value")
+        ax.set_title(f"{algorithm.upper()} - {LAYER_LABELS[layer_norm]}")
+        ax.set_xlabel("Training steps")
+        ax.set_ylabel("Value")
+        ax.ticklabel_format(axis="x", style="sci", scilimits=(0, 0), useMathText=False)
         ax.grid(alpha=0.25)
         ax.legend()
-    fig.suptitle("Critic prediction versus Monte Carlo return (mean ± std)")
-    save_figure(fig, output_dir, timestamp, "q_vs_monte_carlo")
+    fig.suptitle("Critic prediction vs Monte Carlo return (mean ± std)")
+    save_figure(fig, output_dir, "q_vs_monte_carlo")
 
 
 def main():
@@ -200,19 +250,40 @@ def main():
     data, bias_arrays = load_experiments(resolve_experiments(args.experiments))
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
-
-    plot_metric(data, "return", "mean episode return", "Performance over training",
-                output_dir, timestamp)
-    plot_metric(data, "bias_mean", "mean signed bias", "Overestimation bias over training",
-                output_dir, timestamp, zero=True)
-    plot_metric(data, "bias_mae", "mean absolute bias", "Critic error over training",
-                output_dir, timestamp)
-    plot_bias_vs_performance(data, output_dir, timestamp)
-    plot_bias_distributions(data, bias_arrays, output_dir, timestamp)
-    plot_metric(data, "length", "mean episode length", "Episode length over training",
-                output_dir, timestamp)
-    plot_q_vs_mc(data, output_dir, timestamp)
+    plot_metric(data, "return", "Mean episode return", "Performance over training",
+                output_dir, scientific_x=True)
+    plot_metric(data, "bias_mean", r"Mean $(Q_\theta - G_t)$",
+                "Overestimation bias over training", output_dir,
+                zero=True, scientific_x=True)
+    plot_metric(data, "bias_mae", r"MAE $|Q_\theta - G_t|$",
+                "Critic Q-value MAE", output_dir, scientific_x=True)
+    plot_bias_vs_performance(data, output_dir)
+    plot_bias_vs_performance(data, output_dir, metric="bias_mae")
+    plot_bias_distributions(data, bias_arrays, output_dir)
+    plot_bias_distributions(data, bias_arrays, output_dir, seed=0)
+    plot_metric(data, "length", "Mean episode length", "Episode length over training",
+                output_dir, scientific_x=True)
+    plot_q_vs_mc(data, output_dir)
+    plot_metric_combined(data, "return", "Mean episode return",
+                         "Performance over training", output_dir)
+    plot_metric_combined(data, "bias_mean", r"Mean $(Q_\theta - G_t)$",
+                         "Overestimation bias over training", output_dir, zero=True)
+    plot_metric_combined(data, "bias_mae", r"MAE $|Q_\theta - G_t|$",
+                         "Critic Q-value MAE", output_dir)
+    plot_metric_combined(data, "length", "Mean episode length",
+                         "Episode length over training", output_dir)
+    plot_metric_combined(data, "return", "Mean episode return",
+                         "Performance over training", output_dir,
+                         colors=CONDITION_COLORS_4, suffix="combined2", dashed_ln=False)
+    plot_metric_combined(data, "bias_mean", r"Mean $(Q_\theta - G_t)$",
+                         "Overestimation bias over training", output_dir, zero=True,
+                         colors=CONDITION_COLORS_4, suffix="combined2", dashed_ln=False)
+    plot_metric_combined(data, "bias_mae", r"MAE $|Q_\theta - G_t|$",
+                         "Critic Q-value MAE", output_dir,
+                         colors=CONDITION_COLORS_4, suffix="combined2", dashed_ln=False)
+    plot_metric_combined(data, "length", "Mean episode length",
+                         "Episode length over training", output_dir,
+                         colors=CONDITION_COLORS_4, suffix="combined2", dashed_ln=False)
 
 
 if __name__ == "__main__":
