@@ -1,0 +1,29 @@
+{
+  "algo": "ddpg",
+  "layer_norm": 0,
+  "all_variants": false,
+  "params": "search_results/20261005-231810/ddpg_trial8_params.json",
+  "seed": 0,
+  "n_runs": 10,
+  "jobs": 2,
+  "steps": 200000,
+  "buffer_size": 100000,
+  "learning_starts": 5000,
+  "batch_size": 128,
+  "eval_every": 4000,
+  "n_eval": 5,
+  "agent_params": {
+    "hidden": [
+      256,
+      256
+    ],
+    "actor_lr": 1.9088591198098547e-05,
+    "critic_lr": 0.0001961642761814289,
+    "gamma": 0.9847013626723886,
+    "tau": 0.011010136486528835,
+    "sigma": 0.29206539392984937
+  },
+  "environment": "LunarLander-v3",
+  "evaluation_seed_start": 100000,
+  "created_at": "20261006-142455"
+}
