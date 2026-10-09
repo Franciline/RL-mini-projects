@@ -159,7 +159,7 @@ Pass the shared timestamp produced by `--all-variants`. Plot filenames describe
 their contents, for example `return.png` and `bias_mean.png`.
 
 ```bash
-python plots.py 20261005-113723
+python plots.py 20261006-142455
 ```
 
 Explicit experiment directories are still accepted for older or separately run experiments.
@@ -183,3 +183,50 @@ python record.py --weights results/20261004-120000_ddpg_ln0/seed0_best.pt --laye
 
 
 uv run python train.py --all-variants --steps 500000 --eval-every 5000 --n-eval 10 --n-runs 10
+
+----
+cmd ran:
+
+uv run python train.py \
+    --algo ddpg \
+    --layer-norm 0 \
+    --params search_results/20261005-231810/ddpg_trial8_params.json \
+    --steps 200000 \
+    --n-runs 10 \
+    --jobs 2 \
+    --buffer-size 100000 \
+    --eval-every 4000 \
+    --n-eval 5
+
+uv run python train.py \
+    --algo ddpg \
+    --layer-norm 1 \
+    --params search_results/20261005-231810/ddpg_trial8_params.json \
+    --steps 200000 \
+    --n-runs 10 \
+    --jobs 2 \
+    --buffer-size 100000 \
+    --eval-every 4000 \
+    --n-eval 5
+
+uv run python train.py \
+    --algo td3 \
+    --layer-norm 0 \
+    --params search_results/20261005-231809/td3_best_params.json \
+    --steps 200000 \
+    --n-runs 10 \
+    --jobs 2 \
+    --buffer-size 100000 \
+    --eval-every 4000 \
+    --n-eval 5
+
+uv run python train.py \
+    --algo td3 \
+    --layer-norm 1 \
+    --params search_results/20261005-231809/td3_best_params.json \
+    --steps 200000 \
+    --n-runs 10 \
+    --jobs 2 \
+    --buffer-size 100000 \
+    --eval-every 4000 \
+    --n-eval 5
