@@ -1,11 +1,13 @@
-# DDPG vs TD3 on LunarLander: layer normalization and overestimation bias analysis 
+# DDPG vs TD3 on LunarLander: layer normalization and critic bias analysis
 
 We run DDPG and TD3 on `LunarLander-v3` (continuous actions) and study: 
 
-1. the impact of **layer normalization** on **Q-value overestimation bias**;
-2. the impact of **overestimation bias** on **performance**.
+1. the impact of **layer normalization** on **Q-value bias**;
+2. the relationship between **critic bias** and **performance**.
 
-Bias is measured as the critic's `Q(s, a)` minus the Monte Carlo discounted return obtained from the same `(s, a)` pair (positive = overestimation).
+Bias is measured as the critic's `Q(s, a)` minus the Monte Carlo discounted
+return obtained from the same `(s, a)` pair. Positive values indicate
+overestimation; negative values indicate underestimation.
 
 
 ## Structure
@@ -17,6 +19,8 @@ Bias is measured as the critic's `Q(s, a)` minus the Monte Carlo discounted retu
 ├── bias.py          # Q vs Monte Carlo return
 ├── search.py        # hyperparameter search (Optuna)
 ├── plots.py         # results -> learning curves, bias curves, stats
+├── record.py        # record a trained actor in LunarLander
+├── assets/          # README media
 ├── notebooks/       # scratch only
 ├── results/         # one CSV per run (gitignored)
 ├── uv.lock          # uv files
@@ -29,9 +33,7 @@ Bias is measured as the critic's `Q(s, a)` minus the Monte Carlo discounted retu
 
 ```
 cd projet1
-uv sync 
-source .venv/bin/activate
-pip install -e .
+uv sync
 ```
 
 ## Usage
@@ -40,24 +42,24 @@ pip install -e .
 To train a DDPG with no layer norm, 8K steps:
 ```bash
 cd projet1
-python train.py --algo ddpg --layer-norm 0 --steps 8000 --eval-every 1000 --n-eval 3
+uv run python train.py --algo ddpg --layer-norm 0 --steps 8000 --eval-every 1000 --n-eval 3
 ```
 
 Or for td3 with layer norm:
 ```bash
-python train.py --algo td3 --layer-norm 1 --steps 8000 --eval-every 1000 --n-eval 3
+uv run python train.py --algo td3 --layer-norm 1 --steps 8000 --eval-every 1000 --n-eval 3
 ```
 
 Run five independent training runs, using seeds 0 through 4:
 
 ```bash
-python train.py --algo td3 --layer-norm 1 --n-runs 5 --steps 100000
+uv run python train.py --algo td3 --layer-norm 1 --n-runs 5 --steps 100000
 ```
 
 Run DDPG and TD3, each with and without LayerNorm, through one shared worker pool:
 
 ```bash
-python train.py --all-variants --n-runs 10 --jobs 5 --steps 500000
+uv run python train.py --all-variants --n-runs 10 --jobs 5 --steps 500000
 ```
 
 Each command creates one timestamped experiment directory:
@@ -87,7 +89,7 @@ results/20261004-153012_td3_ln1/
 | `--steps` | positive integer | `200000` | Total number of environment transitions to collect. |
 | `--buffer-size` | positive integer | `100000` | Maximum number of transitions stored in the replay buffer. |
 | `--learning-starts` | non-negative integer | `5000` | Replay-buffer transitions collected before gradient updates begin. |
-| `--batch-size` | positive integer | `100` | Replay-buffer transitions sampled per gradient update. |
+| `--batch-size` | positive integer | `128` | Replay-buffer transitions sampled per gradient update. |
 | `--eval-every` | positive integer | `10000` | Number of training-environment steps between evaluations after warm-up. |
 | `--n-eval` | positive integer | `10` | Number of deterministic episodes, using fixed seeds, per evaluation. |
 
@@ -144,14 +146,56 @@ five evaluation episodes per checkpoint.
 | TD3 | Optuna best return | **-22.32** | **13.85** | 41.71 | Selected |
 | TD3 | Lower-bias trial 0 | -53.93 | -16.77 | **40.77** | — |
 
-The selected DDPG configuration uses `actor_lr=1.91e-5`,
-`critic_lr=1.96e-4`, `gamma=0.9847`, `tau=0.0110`, `sigma=0.2921`, and
-`batch_size=128`. The selected TD3 configuration uses `actor_lr=6.94e-4`,
-`critic_lr=7.20e-4`, `gamma=0.9937`, `tau=0.0188`, `sigma=0.2363`,
-`policy_delay=3`, `target_noise=0.2776`, `target_noise_clip=0.5296`, and
-`batch_size=256`. Both use `[256, 256]` hidden layers and 5,000 random warm-up
-steps. These configurations are used for the final long, multi-seed LayerNorm
-comparison.
+#### Final hyperparameters
+
+| Parameter | DDPG | TD3 |
+| --- | ---: | ---: |
+| Hidden layers | `[256, 256]` | `[256, 256]` |
+| Actor learning rate | `1.9089e-5` | `6.9382e-4` |
+| Critic learning rate | `1.9616e-4` | `7.2042e-4` |
+| Discount factor (`gamma`) | `0.9847` | `0.9937` |
+| Soft-update rate (`tau`) | `0.0110` | `0.0188` |
+| Exploration noise (`sigma`) | `0.2921` | `0.2363` |
+| Batch size | `128` | `256` |
+| Random warm-up steps | `5000` | `5000` |
+| Policy delay | — | `3` |
+| Target-policy noise | — | `0.2776` |
+| Target-noise clip | — | `0.5296` |
+
+These parameters are shared by the with- and without-LayerNorm variants of
+each algorithm in the final experiment.
+
+### Final experiment
+
+The final comparison uses 10 independent training seeds, 200,000 environment
+steps, five fixed evaluation episodes every 4,000 steps, and a replay-buffer
+capacity of 100,000 transitions.
+
+```bash
+uv run python train.py \
+  --algo ddpg --layer-norm 0 \
+  --params search_results/20261005-231810/ddpg_trial8_params.json \
+  --steps 200000 --n-runs 10 --jobs 2 --buffer-size 100000 \
+  --eval-every 4000 --n-eval 5
+
+uv run python train.py \
+  --algo ddpg --layer-norm 1 \
+  --params search_results/20261005-231810/ddpg_trial8_params.json \
+  --steps 200000 --n-runs 10 --jobs 2 --buffer-size 100000 \
+  --eval-every 4000 --n-eval 5
+
+uv run python train.py \
+  --algo td3 --layer-norm 0 \
+  --params search_results/20261005-231809/td3_best_params.json \
+  --steps 200000 --n-runs 10 --jobs 2 --buffer-size 100000 \
+  --eval-every 4000 --n-eval 5
+
+uv run python train.py \
+  --algo td3 --layer-norm 1 \
+  --params search_results/20261005-231809/td3_best_params.json \
+  --steps 200000 --n-runs 10 --jobs 2 --buffer-size 100000 \
+  --eval-every 4000 --n-eval 5
+```
 
 ### Plots
 
@@ -159,16 +203,29 @@ Pass the shared timestamp produced by `--all-variants`. Plot filenames describe
 their contents, for example `return.png` and `bias_mean.png`.
 
 ```bash
-python plots.py 20261006-142455
+uv run python plots.py 20261006-142455
 ```
 
 Explicit experiment directories are still accepted for older or separately run experiments.
 
 The command saves performance, bias, bias distribution, episode length, and Q-versus-Monte-Carlo plots in `plots/`.
 
-To visualize 3 episodes using the model .pt and layer norm 0 or 1 depending on how it was trained:
+### Policy comparison
+
+The best saved with-LayerNorm DDPG and TD3 actors are evaluated on the same
+LunarLander task (`seed=100000`). DDPG is shown on the left and TD3 on the
+right. Their episode returns are 267.8 and 288.4, respectively.
+
+<p align="center">
+  <img src="assets/ddpg_vs_td3_ln.gif" alt="DDPG and TD3 LunarLander comparison" width="800">
+</p>
+
+To record episodes from another checkpoint:
+
 ```bash
-python record.py --weights results/20261004-120000_ddpg_ln0/seed0_best.pt --layer-norm 0 --episodes 3
+uv run python record.py \
+  --weights results/20261006-142455_ddpg_ln1/seed4_best.pt \
+  --layer-norm 1 --episodes 3 --seed 100000
 ```
 
 ### Recording parameters
@@ -181,52 +238,7 @@ python record.py --weights results/20261004-120000_ddpg_ln0/seed0_best.pt --laye
 | `--seed` | integer | `0` | Seed for the first episode; later episodes use consecutive seeds. |
 | `--out` | directory path | `videos` | Directory where video files are saved. |
 
+## Authors
 
-uv run python train.py --all-variants --steps 500000 --eval-every 5000 --n-eval 10 --n-runs 10
-
-----
-cmd ran:
-
-uv run python train.py \
-    --algo ddpg \
-    --layer-norm 0 \
-    --params search_results/20261005-231810/ddpg_trial8_params.json \
-    --steps 200000 \
-    --n-runs 10 \
-    --jobs 2 \
-    --buffer-size 100000 \
-    --eval-every 4000 \
-    --n-eval 5
-
-uv run python train.py \
-    --algo ddpg \
-    --layer-norm 1 \
-    --params search_results/20261005-231810/ddpg_trial8_params.json \
-    --steps 200000 \
-    --n-runs 10 \
-    --jobs 2 \
-    --buffer-size 100000 \
-    --eval-every 4000 \
-    --n-eval 5
-
-uv run python train.py \
-    --algo td3 \
-    --layer-norm 0 \
-    --params search_results/20261005-231809/td3_best_params.json \
-    --steps 200000 \
-    --n-runs 10 \
-    --jobs 2 \
-    --buffer-size 100000 \
-    --eval-every 4000 \
-    --n-eval 5
-
-uv run python train.py \
-    --algo td3 \
-    --layer-norm 1 \
-    --params search_results/20261005-231809/td3_best_params.json \
-    --steps 200000 \
-    --n-runs 10 \
-    --jobs 2 \
-    --buffer-size 100000 \
-    --eval-every 4000 \
-    --n-eval 5
+- Amélie Chu
+- Alan Tambellini
